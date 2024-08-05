@@ -1,32 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using RestSharp;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace CityPasswordGenerator
 {
     class Program
     {
         // Twój klucz API z RapidAPI
-        const string ApiKey = "Jakiś losowy klucz api";
+        const string ApiKey = "xxx";
 
-        // URL do API GeoDB Cities z limitem 10 wyników
+        // URL do API GeoDB Cities
         const string ApiUrl = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities?namePrefixDefaultLangResults=true&hateoasMode=false&limit=1&offset=";
+
+        const int minPassLenght = 12;
+        const int maxPassLenght = 16;
 
         static void Main(string[] args)
         {
             try
             {
-                List<string> cities = GetCities();
-                if (cities.Count > 0)
-                {
-                    string password = GeneratePassword(cities);
-                    Console.WriteLine($"Wygenerowane hasło: {password}");
-                }
-                else
-                {
-                    Console.WriteLine("Nie udało się wygenerować hasła");
-                }
+                //List<string> cities = GetCities();
+                string city = GetCity();
+
+                string password = GeneratePassword(city);
+                Console.WriteLine($"Wygenerowane hasło: {password}");
+
             }
             catch (Exception ex)
             {
@@ -34,7 +35,7 @@ namespace CityPasswordGenerator
             }
         }
 
-        static List<string> GetCities()
+        static string GetCity()
         {
             var random = new Random();
             int randomNumber = random.Next(9500);
@@ -44,9 +45,6 @@ namespace CityPasswordGenerator
             var request = new RestRequest();
 
 
-
-
-
             request.AddHeader("x-rapidapi-host", "wft-geo-db.p.rapidapi.com");
             request.AddHeader("x-rapidapi-key", ApiKey);
 
@@ -54,12 +52,12 @@ namespace CityPasswordGenerator
             if (response.IsSuccessful)
             {
                 var jsonResponse = JsonConvert.DeserializeObject<GeoDbResponse>(response.Content);
-                List<string> cities = new List<string>();
+                string city = "";
                 foreach (var cityData in jsonResponse.Data)
                 {
-                    cities.Add(cityData.City);
+                    city = cityData.City;
                 }
-                return cities;
+                return city;
             }
             else
             {
@@ -70,13 +68,28 @@ namespace CityPasswordGenerator
             }
         }
 
-        static string GeneratePassword(List<string> cities)
+        static string GeneratePassword(string city)
         {
             var random = new Random();
-            int cityIndex = random.Next(cities.Count);
             int randomNumber = random.Next(100, 1000);
+            string character = "";
 
-            return cities[cityIndex] + randomNumber.ToString();
+            String sc = "!@#$%^&*~";
+            int sz = random.Next(sc.Length);
+            character = sc.ElementAt(sz).ToString();
+
+            string password = character + city + randomNumber;
+
+            while (password.Any(Char.IsWhiteSpace) || Regex.IsMatch(city, @"abcdefghijklmnopqrstuvwxyz0123456789") || 
+                password.Length < minPassLenght || password.Length > maxPassLenght )
+            {
+                Thread.Sleep(1100);
+                city = GetCity();
+
+                password = character + city + randomNumber;
+            }
+
+            return password;
         }
     }
 
